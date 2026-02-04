@@ -152,11 +152,11 @@ class NotionIntegration:
 
     def add_verse_block(self, citation: str, passage: str, image_url: str) -> bool:
         """
-        add a complete verse block with heading, text, and image
+        add verse image to notion page
 
         args:
-            citation: verse citation (e.g., "John 3:16")
-            passage: the verse text
+            citation: verse citation (unused, kept for compatibility)
+            passage: the verse text (unused, kept for compatibility)
             image_url: url of the verse image
 
         returns:
@@ -165,47 +165,8 @@ class NotionIntegration:
         try:
             url = f"{self.base_url}/blocks/{self.page_id}/children"
 
-            # get today's date for the heading
-            today = datetime.now(timezone.utc).strftime('%B %d, %Y')
-
-            # create a rich block structure
             data = {
                 "children": [
-                    {
-                        "object": "block",
-                        "type": "divider",
-                        "divider": {}
-                    },
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {
-                            "rich_text": [{
-                                "type": "text",
-                                "text": {"content": f"Verse of the Day - {today}"}
-                            }]
-                        }
-                    },
-                    {
-                        "object": "block",
-                        "type": "heading_3",
-                        "heading_3": {
-                            "rich_text": [{
-                                "type": "text",
-                                "text": {"content": citation}
-                            }]
-                        }
-                    },
-                    {
-                        "object": "block",
-                        "type": "quote",
-                        "quote": {
-                            "rich_text": [{
-                                "type": "text",
-                                "text": {"content": passage}
-                            }]
-                        }
-                    },
                     {
                         "object": "block",
                         "type": "image",
@@ -220,7 +181,7 @@ class NotionIntegration:
             response = requests.patch(url, headers=self.headers, json=data)
             response.raise_for_status()
 
-            print(f"Verse block added to Notion successfully!")
+            print("Verse image added to Notion successfully!")
             return True
 
         except Exception as e:

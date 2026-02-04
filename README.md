@@ -1,5 +1,7 @@
 # YouVersion to Notion Daily Sync
 
+I'm a christian, and I use Notion a lot to manage my tasks. This year, I'm super intentional on keeping God's word in direct line of my sight, as much as possible. I also use the Bible by Youversion. So, I happen to know they have daily bible verse images. So, I decided to fetch those images directly from their website and update daily on my Notion workspace, so I don't have to worry about binding His word to my heart daily. This is how:
+
 Automatically sync the YouVersion Bible Verse of the Day (with image!) to your Notion page every morning.
 
 ## Features
@@ -81,7 +83,7 @@ nano .env  # or use your favorite editor
 
 Your `.env` should look like:
 ```env
-NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+NOTION_TOKEN=ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 NOTION_PAGE_ID=a1b2c3d4e5f6789012345678901234
 CLEAR_DAILY=false
 ```

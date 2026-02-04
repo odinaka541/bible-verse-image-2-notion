@@ -89,41 +89,65 @@ class EnhancedYouVersionFetcher:
         """
         strategy 2: scrape bible.com/verse-of-the-day
         """
+        from urllib.parse import unquote
+        from bs4 import BeautifulSoup
+
         url = "https://www.bible.com/verse-of-the-day"
         response = self.session.get(url)
         response.raise_for_status()
 
-        # parse with beautifulsoup
-        from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # find the verse data (structure may vary)
-        # look for json-ld structured data
-        json_ld = soup.find('script', type='application/ld+json')
-        if json_ld:
-            data = json.loads(json_ld.string)
-            # extract verse info from structured data
-            pass
+        # find the votd image - look for 640x640 images from youversion
+        image_url = None
+        for img in soup.find_all('img'):
+            src = img.get('src', '')
+            if '640x640' in src:
+                # decode the next.js image proxy url
+                decoded = unquote(src)
+                # extract the s3 url
+                if 'https://s3' in decoded:
+                    s3_part = decoded.split('https://s3')[1]
+                    image_url = 'https://s3' + s3_part.split('&')[0].split(' ')[0]
+                    break
 
-        # alternative: look for specific elements
-        verse_elem = soup.find('span', {'data-usfm': True})
-        if verse_elem:
-            citation = verse_elem.get('data-usfm')
-            passage = verse_elem.text.strip()
+        if not image_url:
+            raise Exception("Could not find verse image")
 
-            # find image
-            img_elem = soup.find('img', class_='verse-image') or soup.find('img', alt='Verse of the Day')
-            image_url = img_elem.get('src') if img_elem else None
+        # find the verse text and citation from the votd card
+        citation = "Unknown"
+        passage = "Unknown"
 
-            if image_url:
-                return {
-                    'citation': citation,
-                    'passage': passage,
-                    'image_url': image_url,
-                    'date': datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                }
+        # find all divs and look for the votd container
+        for div in soup.find_all('div'):
+            classes = div.get('class', [])
+            class_str = ' '.join(classes) if classes else ''
 
-        raise Exception("Could not parse bible.com page")
+            # the main votd card has specific classes
+            if 'max-w-[530px]' in class_str and 'shadow-light-2' in class_str:
+                text = div.get_text(strip=True)
+                if 'Verse of the Day' in text:
+                    # find all links - first is verse text, second is citation
+                    links = div.find_all('a')
+                    for a in links:
+                        href = a.get('href', '')
+                        link_text = a.get_text(strip=True)
+
+                        if '/bible/compare/' in href:
+                            # this is the verse text - clean up all quote types
+                            passage = link_text.strip().strip('""\u201c\u201d')
+                        elif '/bible/' in href and '(' in link_text:
+                            # this is the citation with translation (e.g. "Matthew 7:12 (ESV)")
+                            citation = link_text
+                            break
+                    break
+
+        return {
+            'citation': citation,
+            'passage': passage,
+            'image_url': image_url,
+            'date': datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        }
 
     def _strategy_unofficial_api(self) -> Dict[str, str]:
         """
@@ -197,45 +221,13 @@ class NotionUploader:
 
     def add_verse_with_image(self, citation: str, passage: str, image_url: str) -> bool:
         """
-        add verse block with image to notion page
+        add verse image to notion page
         """
         try:
             url = f"{self.base_url}/blocks/{self.page_id}/children"
 
-            today = datetime.now(timezone.utc).strftime('%B %d, %Y')
-
             data = {
                 "children": [
-                    {
-                        "object": "block",
-                        "type": "divider",
-                        "divider": {}
-                    },
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {
-                            "rich_text": [{
-                                "type": "text",
-                                "text": {"content": f"{today}"}
-                            }]
-                        }
-                    },
-                    {
-                        "object": "block",
-                        "type": "callout",
-                        "callout": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {
-                                        "content": f"{citation}\n\n{passage}"
-                                    }
-                                }
-                            ],
-                            "color": "blue_background"
-                        }
-                    },
                     {
                         "object": "block",
                         "type": "image",
@@ -250,7 +242,7 @@ class NotionUploader:
             response = requests.patch(url, headers=self.headers, json=data)
             response.raise_for_status()
 
-            print(f"Successfully uploaded to Notion!")
+            print("Successfully uploaded to Notion!")
             return True
 
         except requests.exceptions.HTTPError as e:

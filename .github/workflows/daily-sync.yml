@@ -30,8 +30,9 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+          TARGET_BLOCK_ID: ${{ secrets.TARGET_BLOCK_ID }}
         run: |
-          python youversion_sync_enhanced.py
+          python youversion_sync_ultrarobust.py
 
       - name: Notify on failure
         if: failure()
